@@ -1,4 +1,7 @@
 use chrono::{DateTime, FixedOffset, Utc};
+use std::collections::{HashMap, HashSet};
+use std::sync::Mutex;
+
 use crate::models::{Activity, EligibilityResponse, User};
 
 const SERVER_TIMEZONE_OFFSET: i32 = 8 * 3600;
@@ -11,6 +14,7 @@ fn get_server_now() -> DateTime<FixedOffset> {
 pub struct EligibilityService {
     users: Vec<User>,
     activities: Vec<Activity>,
+    registrations: Mutex<HashMap<u64, HashSet<u64>>>,
 }
 
 impl EligibilityService {
@@ -18,6 +22,7 @@ impl EligibilityService {
         Self {
             users: User::mock_users(),
             activities: Activity::mock_activities(),
+            registrations: Mutex::new(HashMap::new()),
         }
     }
 
@@ -27,6 +32,58 @@ impl EligibilityService {
 
     pub fn get_activity(&self, activity_id: u64) -> Option<&Activity> {
         self.activities.iter().find(|a| a.id == activity_id)
+    }
+
+    pub fn get_registration_stats(&self, activity_id: u64) -> (u32, u32, u32) {
+        let activity = self.get_activity(activity_id);
+        let total = activity.map(|a| a.total_slots).unwrap_or(0);
+        let registered = self
+            .registrations
+            .lock()
+            .unwrap()
+            .get(&activity_id)
+            .map(|set| set.len() as u32)
+            .unwrap_or(0);
+        let remaining = total.saturating_sub(registered);
+        (total, registered, remaining)
+    }
+
+    pub fn is_user_registered(&self, user_id: u64, activity_id: u64) -> bool {
+        self.registrations
+            .lock()
+            .unwrap()
+            .get(&activity_id)
+            .map(|set| set.contains(&user_id))
+            .unwrap_or(false)
+    }
+
+    pub fn register_user(&self, user_id: u64, activity_id: u64) -> Result<(u32, u32, u32), String> {
+        let eligibility = self.check_eligibility(user_id, activity_id);
+        if !eligibility.eligible {
+            return Err(if eligibility.reasons.is_empty() {
+                "不符合参与资格".to_string()
+            } else {
+                eligibility.reasons.join("; ")
+            });
+        }
+
+        let mut regs = self.registrations.lock().unwrap();
+        let entry = regs.entry(activity_id).or_insert_with(HashSet::new);
+
+        if entry.contains(&user_id) {
+            return Err("用户已报名该活动".to_string());
+        }
+
+        let activity = self.get_activity(activity_id).unwrap();
+        if entry.len() as u32 >= activity.total_slots {
+            return Err("活动名额已满".to_string());
+        }
+
+        entry.insert(user_id);
+        let registered = entry.len() as u32;
+        let total = activity.total_slots;
+        let remaining = total.saturating_sub(registered);
+        Ok((total, registered, remaining))
     }
 
     pub fn check_eligibility(&self, user_id: u64, activity_id: u64) -> EligibilityResponse {
@@ -41,6 +98,9 @@ impl EligibilityService {
                     user_id,
                     activity_id,
                     reasons,
+                    remaining_slots: 0,
+                    total_slots: 0,
+                    registered_count: 0,
                 };
             }
         };
@@ -54,6 +114,9 @@ impl EligibilityService {
                     user_id,
                     activity_id,
                     reasons,
+                    remaining_slots: 0,
+                    total_slots: 0,
+                    registered_count: 0,
                 };
             }
         };
@@ -103,11 +166,28 @@ impl EligibilityService {
             ));
         }
 
+        let (total_slots, registered_count, remaining_slots) =
+            self.get_registration_stats(activity_id);
+
+        if remaining_slots == 0 {
+            reasons.push(format!(
+                "活动名额已满：总名额 {}，已报名 {}",
+                total_slots, registered_count
+            ));
+        }
+
+        if self.is_user_registered(user_id, activity_id) {
+            reasons.push("用户已报名该活动".to_string());
+        }
+
         EligibilityResponse {
             eligible: reasons.is_empty(),
             user_id,
             activity_id,
             reasons,
+            remaining_slots,
+            total_slots,
+            registered_count,
         }
     }
 }

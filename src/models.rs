@@ -20,6 +20,7 @@ pub struct Activity {
     pub allowed_regions: Vec<String>,
     pub start_time: DateTime<FixedOffset>,
     pub end_time: DateTime<FixedOffset>,
+    pub total_slots: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,6 +35,9 @@ pub struct EligibilityResponse {
     pub user_id: u64,
     pub activity_id: u64,
     pub reasons: Vec<String>,
+    pub remaining_slots: u32,
+    pub total_slots: u32,
+    pub registered_count: u32,
 }
 
 impl User {
@@ -83,6 +87,7 @@ impl Activity {
                 allowed_regions: vec!["北京".to_string(), "上海".to_string()],
                 start_time: DateTime::parse_from_rfc3339("2026-01-01T00:00:00+08:00").unwrap(),
                 end_time: DateTime::parse_from_rfc3339("2026-12-31T23:59:59+08:00").unwrap(),
+                total_slots: 100,
             },
             Activity {
                 id: 102,
@@ -93,6 +98,7 @@ impl Activity {
                 allowed_regions: vec!["北京".to_string(), "上海".to_string(), "广州".to_string()],
                 start_time: DateTime::parse_from_rfc3339("2026-06-01T09:00:00+08:00").unwrap(),
                 end_time: DateTime::parse_from_rfc3339("2026-06-30T18:00:00+08:00").unwrap(),
+                total_slots: 50,
             },
             Activity {
                 id: 103,
@@ -103,6 +109,7 @@ impl Activity {
                 allowed_regions: vec![],
                 start_time: DateTime::parse_from_rfc3339("2026-03-01T06:00:00+08:00").unwrap(),
                 end_time: DateTime::parse_from_rfc3339("2026-03-01T14:00:00+08:00").unwrap(),
+                total_slots: 500,
             },
         ]
     }
