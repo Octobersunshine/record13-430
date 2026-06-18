@@ -1,4 +1,12 @@
+use chrono::{DateTime, FixedOffset, Utc};
 use crate::models::{Activity, EligibilityResponse, User};
+
+const SERVER_TIMEZONE_OFFSET: i32 = 8 * 3600;
+
+fn get_server_now() -> DateTime<FixedOffset> {
+    let cst = FixedOffset::east_opt(SERVER_TIMEZONE_OFFSET).unwrap();
+    Utc::now().with_timezone(&cst)
+}
 
 pub struct EligibilityService {
     users: Vec<User>,
@@ -77,6 +85,22 @@ impl EligibilityService {
                     user.region
                 ));
             }
+        }
+
+        let now = get_server_now();
+        if now < activity.start_time {
+            reasons.push(format!(
+                "活动尚未开始：活动开始时间为 {}（服务器时间），当前时间为 {}",
+                activity.start_time.format("%Y-%m-%d %H:%M:%S %:z"),
+                now.format("%Y-%m-%d %H:%M:%S %:z")
+            ));
+        }
+        if now > activity.end_time {
+            reasons.push(format!(
+                "活动已结束：活动结束时间为 {}（服务器时间），当前时间为 {}",
+                activity.end_time.format("%Y-%m-%d %H:%M:%S %:z"),
+                now.format("%Y-%m-%d %H:%M:%S %:z")
+            ));
         }
 
         EligibilityResponse {

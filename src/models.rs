@@ -1,3 +1,4 @@
+use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,6 +18,8 @@ pub struct Activity {
     pub max_age: Option<u8>,
     pub vip_only: bool,
     pub allowed_regions: Vec<String>,
+    pub start_time: DateTime<FixedOffset>,
+    pub end_time: DateTime<FixedOffset>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -78,6 +81,8 @@ impl Activity {
                 max_age: Some(25),
                 vip_only: false,
                 allowed_regions: vec!["北京".to_string(), "上海".to_string()],
+                start_time: DateTime::parse_from_rfc3339("2026-01-01T00:00:00+08:00").unwrap(),
+                end_time: DateTime::parse_from_rfc3339("2026-12-31T23:59:59+08:00").unwrap(),
             },
             Activity {
                 id: 102,
@@ -86,6 +91,8 @@ impl Activity {
                 max_age: None,
                 vip_only: true,
                 allowed_regions: vec!["北京".to_string(), "上海".to_string(), "广州".to_string()],
+                start_time: DateTime::parse_from_rfc3339("2026-06-01T09:00:00+08:00").unwrap(),
+                end_time: DateTime::parse_from_rfc3339("2026-06-30T18:00:00+08:00").unwrap(),
             },
             Activity {
                 id: 103,
@@ -94,6 +101,8 @@ impl Activity {
                 max_age: Some(60),
                 vip_only: false,
                 allowed_regions: vec![],
+                start_time: DateTime::parse_from_rfc3339("2026-03-01T06:00:00+08:00").unwrap(),
+                end_time: DateTime::parse_from_rfc3339("2026-03-01T14:00:00+08:00").unwrap(),
             },
         ]
     }
